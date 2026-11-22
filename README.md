@@ -106,6 +106,8 @@ node --env-file=.env.local scripts/run.mjs vite dev --host 0.0.0.0 --port 8080
 | `SEED_SAMPLE_DATA`                                  | optional   | `true` loads demo incidents into a real database       |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`             | optional   | Phone push notifications; make a pair with `node scripts/vapid-keys.mjs`. Unset = push off |
 | `VAPID_SUBJECT`                                     | optional   | Contact for push services (`mailto:` or `https:`); defaults to `BETTER_AUTH_URL` |
+| `CRON_SECRET`                                       | production | Long random string; guards `/api/cron/*`              |
+| `QSTASH_TOKEN`, `QSTASH_URL`                        | production | Upstash QStash: books one watchdog call per safe walk, just after its deadline, so a walk escalates even if the phone dies. `QSTASH_URL` only if your account has a regional URL |
 
 ## Commands
 
@@ -128,6 +130,9 @@ node --env-file=.env.local scripts/run.mjs vite dev --host 0.0.0.0 --port 8080
 
 ## Notes
 
+- **Safe-walk watchdog:** don't point an every-minute cron at `/api/cron/walks`. Neon's
+  free plan only sleeps after 5 idle minutes, so a per-minute poll keeps the database
+  awake 24/7 and uses up the month's compute. QStash calls it once per walk instead.
 - Sign-in only works from trusted addresses: `BETTER_AUTH_URL`, the Vercel production,
   branch and current-deploy URLs, `localhost`, and private LAN IPs. If sign-in says
   _"isn't allowed from this web address"_, the server log shows `Invalid origin: <url>`;

@@ -227,7 +227,7 @@ The scheduling rules live in one small, unit-tested file:
 | Optimistic concurrency | `assignSos` in `backend/functions/sos.ts` | Re-assignment only applies if nobody changed the alert since it was read; otherwise it is undone and the admin is asked to refresh |
 | Mutual exclusion | `backend/db.ts` | Migrations run one at a time on a single promise chain, like a mutex; each runs in a transaction |
 | Watchdog timer | `escalateOverdueWalks` in `backend/functions/walks.ts` | "Walk with me" turns into an SOS if the student doesn't check in on time |
-| Cron / background daemon | `routes/api/cron/walks.ts` | An external scheduler runs the watchdog every minute, even with no app open |
+| One-shot timer (alarm) | `backend/core/walk-timer.ts`, `routes/api/cron/walks.ts` | Starting or extending a walk books one QStash call for just after its deadline, so the watchdog runs even with no app open, and the database can sleep when nobody is walking |
 | Shared memory / caching | Admin counters (`admin.ts`) | All open consoles share one result for 3 s |
 | Resource limits / throttling | `backend/core/rate-limit.ts`, GPS ping throttle | Sliding-window limits; pings < 2 s apart are merged |
 | Timers & interrupts | `components/shared/sos-button.tsx` | 2-second hold uses a real timer; releasing early cancels it |

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/backend/db";
 import { audit } from "@/backend/core/helpers";
+import { scheduleWalkCheck } from "@/backend/core/walk-timer";
 import { CAMPUS } from "@/lib/campus";
 import { iso, newId } from "@/lib/utils";
 import { openSosForUser } from "./sos";
@@ -105,9 +106,10 @@ async function escalate(walk: WalkRow, fix?: { lat: number; lng: number; acc: nu
 
 /**
  * Server-side watchdog: escalate every walk that is overdue past the grace
- * period. Triggered by ordinary traffic (admin counters, students' alert
- * checks, page navigation) and by the /api/cron/walks backstop; throttled to
- * once per 15 s per server instance, and a single indexed query when idle.
+ * period. Triggered by open admin consoles and by /api/cron/walks, which a
+ * one-shot QStash call per walk hits just after the deadline (see
+ * core/walk-timer.ts); throttled to once per 15 s per server instance, and a
+ * single indexed query when idle.
  */
 const watchdog = globalThis as typeof globalThis & { __walkWatchdogAt__?: number };
 export async function escalateOverdueWalks({ force = false } = {}): Promise<number> {
@@ -174,7 +176,9 @@ export const startWalk = createServerFn({ method: "POST" })
       id,
       `${data.minutes} min to ${data.destination}`,
     );
-    return mapWalk(rows[0]!);
+    const walk = mapWalk(rows[0]!);
+    await scheduleWalkCheck(walk.dueAt, SERVER_GRACE_MS);
+    return walk;
   });
 
 export const extendWalk = createServerFn({ method: "POST" })
@@ -192,7 +196,10 @@ export const extendWalk = createServerFn({ method: "POST" })
       returning *
     `;
     if (!rows[0]) throw new Error("This walk has already ended.");
-    return mapWalk(rows[0]);
+    const walk = mapWalk(rows[0]);
+    // The earlier call still lands at the old deadline and finds nothing overdue.
+    await scheduleWalkCheck(walk.dueAt, SERVER_GRACE_MS);
+    return walk;
   });
 
 /** "I'm safe" (completed) or "Cancel walk" (cancelled). */

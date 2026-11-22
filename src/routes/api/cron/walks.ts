@@ -3,9 +3,12 @@ import { timingSafeEqual } from "node:crypto";
 import { escalateOverdueWalks } from "@/backend/functions/walks";
 
 /**
- * Backstop for the safe-walk watchdog: an external scheduler (e.g. cron-job.org,
- * every minute) calls `GET /api/cron/walks` with `Authorization: Bearer
- * <CRON_SECRET>`, so overdue walks escalate even when nobody has the app open.
+ * Backstop for the safe-walk watchdog: `GET /api/cron/walks` with
+ * `Authorization: Bearer <CRON_SECRET>` escalates overdue walks even when
+ * nobody has the app open. Normally a one-shot QStash call booked when each
+ * walk starts or is extended lands here just after its deadline (see
+ * backend/core/walk-timer.ts). Do not poll this every minute: each call wakes
+ * the database, and a per-minute poll keeps Neon from ever sleeping.
  * Disabled unless CRON_SECRET is set.
  */
 function authorized(request: Request): boolean {
