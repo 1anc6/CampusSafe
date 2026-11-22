@@ -1,5 +1,12 @@
 /** Photos per report (signed-in and anonymous). */
 export const PHOTO_MAX = 3;
+/**
+ * Days a photo is kept after its report was sent. The daily retention job
+ * (backend/core/retention.ts) then deletes it; the written report stays.
+ */
+export const PHOTO_KEEP_DAYS = 5;
+/** Shown wherever photos are added or viewed, so nobody is surprised when they go. */
+export const PHOTO_KEEP_NOTE = `Photos are deleted ${PHOTO_KEEP_DAYS} days after the report is sent; the written report stays.`;
 /** Largest accepted photo as a base64 data URL (~1 MB of JPEG); 3 fit under a 4.5 MB request. */
 export const PHOTO_MAX_CHARS = 1_400_000;
 /** Long edge photos are scaled down to: enough to read a number plate or a sign. */

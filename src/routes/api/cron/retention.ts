@@ -5,7 +5,8 @@ import { purgeExpiredReports } from "@/backend/core/retention";
 /**
  * Data retention: Vercel Cron (vite.config.ts, daily at 03:00 UTC) calls
  * `GET /api/cron/retention` with `Authorization: Bearer <CRON_SECRET>`. Closed
- * reports older than RETENTION_DAYS (default 365) are de-identified — see
+ * reports older than RETENTION_DAYS (default 365) are de-identified, and photos
+ * on any report sent more than PHOTO_KEEP_DAYS (5) ago are deleted — see
  * src/backend/core/retention.ts. Disabled unless CRON_SECRET is set.
  */
 function authorized(request: Request): boolean {

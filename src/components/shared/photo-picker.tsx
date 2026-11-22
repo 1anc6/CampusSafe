@@ -2,6 +2,7 @@ import { Camera, ImagePlus, LoaderCircle, ShieldCheck, X } from "lucide-react";
 import { useRef, useState } from "react";
 import {
   PHOTO_INPUT_MAX_BYTES,
+  PHOTO_KEEP_NOTE,
   PHOTO_MAX,
   PHOTO_MAX_CHARS,
   PHOTO_MAX_EDGE,
@@ -124,6 +125,7 @@ export function PhotoPicker({
           {photos.length} / {PHOTO_MAX}
         </span>
       </p>
+      <p className="mt-1 text-[11px] text-dim">{PHOTO_KEEP_NOTE}</p>
       {problem && (
         <p className="mt-2 text-xs text-warn" role="alert">
           {problem}
@@ -202,7 +204,10 @@ export function PhotoGrid({ urls, note }: { urls: string[]; note?: string }) {
           </li>
         ))}
       </ul>
-      {note && <p className="mt-2 text-xs text-dim">{note}</p>}
+      <p className="mt-2 text-xs text-dim">
+        {note ? `${note} ` : ""}
+        {PHOTO_KEEP_NOTE}
+      </p>
     </div>
   );
 }
