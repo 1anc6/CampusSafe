@@ -115,14 +115,13 @@ export const LOCATIONS = [
  * PLACEHOLDER phone numbers: not real campus lines, and real ones never go here
  * (this repository is public). Set the real numbers as server environment
  * variables on the host instead: SECURITY_LINE_PHONE for the security line and
- * RESPONDER_PHONES for these units (see src/lib/contact-phones.ts). Until then
+ * RESPONDER_PHONES and RESPONDER_NAMES for these units (see src/lib/contact-phones.ts). Until then
  * the UI labels these "placeholder" wherever shown.
  */
 export const RESPONDER_UNITS = [
   { id: "sec-a", name: "Kavya Nair", unit: "Campus Security A", phone: "+91 80 4450 1101" },
   { id: "med-1", name: "Dr. Arjun Mehta", unit: "Medical Unit 1", phone: "+91 80 4450 1188" },
   { id: "night", name: "Night Patrol", unit: "Night Patrol", phone: "+91 80 4450 1199" },
-  { id: "fire", name: "Fire Response", unit: "Fire & Rescue", phone: "+91 80 4450 1122" },
 ] as const;
 
 /**

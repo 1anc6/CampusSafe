@@ -5,7 +5,7 @@ import { ensureBootstrapAccounts } from "@/backend/core/accounts";
 import { getOrCreateProfile } from "@/backend/core/helpers";
 import { ensureSeedData } from "@/backend/core/seed";
 import { escalateOverdueWalks } from "./walks";
-import { securityLinePhone, syncResponderPhones } from "@/backend/core/contact-phones";
+import { securityLinePhone, syncResponderContacts } from "@/backend/core/contact-phones";
 import { SECURITY_LINE } from "@/lib/campus";
 
 /**
@@ -20,8 +20,8 @@ export const getViewer = createServerFn({ method: "GET" })
     // Safe-walk watchdog rides along with navigation; never delays the page.
     void escalateOverdueWalks().catch((err) => console.error("[walks] watchdog failed:", err));
     await ensureSeedData();
-    // Real unit numbers from RESPONDER_PHONES (once per server instance; never throws).
-    await syncResponderPhones();
+    // Real unit names and numbers from RESPONDER_NAMES / RESPONDER_PHONES (once per server instance; never throws).
+    await syncResponderContacts();
     return getOrCreateProfile(context.userId);
   });
 

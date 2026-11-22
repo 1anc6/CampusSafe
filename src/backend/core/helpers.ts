@@ -47,16 +47,21 @@ export async function getOrCreateProfile(userId: string): Promise<Profile> {
   return mapProfile(created);
 }
 
-/** Staff need a responder unit row so command can dispatch them. */
+/**
+ * Responder accounts need a unit row so command can dispatch them. Admins run
+ * dispatch rather than receive it, so they get no unit, and a unit left over
+ * from an earlier role is removed unless it still has a live SOS.
+ */
 export async function ensureResponderUnit(userId: string, name: string, role: UserRole) {
-  if (role === "student") return;
   const sql = await getSql();
+  const id = "self-" + userId;
+  if (role !== "responder") {
+    await sql`delete from responders where id = ${id} and active_sos = 0`;
+    return;
+  }
   await sql`
     insert into responders (id, name, unit, phone, user_id, status)
-    values (
-      ${"self-" + userId}, ${name}, ${role === "admin" ? "Command" : "Patrol"},
-      ${null}, ${userId}, ${"available"}
-    )
+    values (${id}, ${name}, ${"Patrol"}, ${null}, ${userId}, ${"available"})
     on conflict (id) do update set user_id = excluded.user_id, name = excluded.name
   `;
 }

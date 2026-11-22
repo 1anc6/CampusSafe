@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cleanPhone, parseResponderPhones } from "./contact-phones.ts";
+import { cleanName, cleanPhone, parseUnitMap } from "./contact-phones.ts";
 
-const UNITS = ["sec-a", "med-1", "night", "fire"];
+const UNITS = ["sec-a", "med-1", "night"];
 
 test("cleanPhone accepts common formats and tidies spacing", () => {
   assert.equal(cleanPhone("  +91  98000 00001 "), "+91 98000 00001");
@@ -20,20 +20,34 @@ test("cleanPhone rejects junk, too short and too long numbers", () => {
   assert.equal(cleanPhone("tel:+919800000001"), null);
 });
 
-test("parseResponderPhones maps known units and skips the rest", () => {
-  const { phones, skipped } = parseResponderPhones(
-    "sec-a=+91 98000 00001, med-1 = +91 92000 00002;night=+91 90000 00003\nboss=+91 99000 00004,fire=nope,=+91 1,",
+test("cleanName accepts names and rejects markup or numbers", () => {
+  assert.equal(cleanName("  Alex   Rivera "), "Alex Rivera");
+  assert.equal(cleanName("O'Neil-Smith Jr."), "O'Neil-Smith Jr.");
+  assert.equal(cleanName("Zoë"), "Zoë");
+  assert.equal(cleanName("मोनिका"), "मोनिका");
+  assert.equal(cleanName(""), null);
+  assert.equal(cleanName("<b>x</b>"), null);
+  assert.equal(cleanName("Agent 47"), null);
+  assert.equal(cleanName("a".repeat(61)), null);
+});
+
+test("parseUnitMap maps known units and skips the rest without echoing values", () => {
+  const { values, skipped } = parseUnitMap(
+    "sec-a=+91 98000 00001, med-1 = +91 92000 00002;night=+91 90000 00003\nboss=+91 99000 00004,fire=+91 98000 00005,=+91 1,",
     UNITS,
+    cleanPhone,
   );
-  assert.deepEqual(Object.fromEntries(phones), {
+  assert.deepEqual(Object.fromEntries(values), {
     "sec-a": "+91 98000 00001",
     "med-1": "+91 92000 00002",
     night: "+91 90000 00003",
   });
-  assert.deepEqual(skipped, ["boss", "fire", "=+91 1"]);
+  assert.deepEqual(skipped, ["boss", "fire", "(no unit id)"]);
 });
 
-test("parseResponderPhones with nothing set is empty", () => {
-  assert.equal(parseResponderPhones(undefined, UNITS).phones.size, 0);
-  assert.equal(parseResponderPhones("  ", UNITS).phones.size, 0);
+test("parseUnitMap works for names too, and nothing set is empty", () => {
+  const { values } = parseUnitMap("sec-a=Alex, med-1=Sam ,night=Kim", UNITS, cleanName);
+  assert.deepEqual(Object.fromEntries(values), { "sec-a": "Alex", "med-1": "Sam", night: "Kim" });
+  assert.equal(parseUnitMap(undefined, UNITS, cleanPhone).values.size, 0);
+  assert.equal(parseUnitMap("  ", UNITS, cleanName).values.size, 0);
 });
