@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Briefcase,
-  Camera,
   CarFront,
   CircleDot,
   Construction,
@@ -9,7 +8,6 @@ import {
   EyeOff,
   Flame,
   HeartPulse,
-  ImageOff,
   ListChecks,
   LoaderCircle,
   Lock,
@@ -32,7 +30,8 @@ import { useViewer } from "@/lib/auth/use-viewer";
 import { cn } from "@/lib/utils";
 import { NeuSelect, placeOptions } from "@/components/shared/neu-select";
 import type { IncidentVisibility } from "@/lib/access";
-import { reencodeImage } from "@/lib/photos";
+import { PhotoPicker, type PickedPhoto } from "@/components/shared/photo-picker";
+import { UrgentHelp } from "@/components/student/urgent-help";
 
 export const Route = createFileRoute("/_student/report")({
   staticData: { width: "wide" },
@@ -88,17 +87,15 @@ function ReportForm() {
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState<Severity>("P3");
   const [occurredAt, setOccurredAt] = useState(() => localNow());
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<PickedPhoto[]>([]);
+  const [preparing, setPreparing] = useState(0);
   const [visibility, setVisibility] = useState<IncidentVisibility>("identified");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function onPhoto(file: File | null) {
-    setPhoto(file ? await compressImage(file) : null);
-  }
-
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (preparing > 0) return;
     if (!categoryId) {
       setError("Pick a category.");
       return;
@@ -126,7 +123,7 @@ function ReportForm() {
           description: description.trim(),
           severity,
           occurredAt: new Date(occurredAt).toISOString(),
-          photoData: photo,
+          photos: photos.map((p) => p.url),
           visibility,
         },
       });
@@ -244,12 +241,13 @@ function ReportForm() {
                 </button>
               ))}
             </div>
+            {severity === "P1" && <UrgentHelp />}
           </FormSection>
 
           <FormSection
             step={4}
             title="Details"
-            hint="Facts only: where, who, what you need. A photo helps."
+            hint="Facts only: where, who, what you need. Photos help."
           >
             <textarea
               value={description}
@@ -259,34 +257,14 @@ function ReportForm() {
               className="input min-h-32"
               aria-label="What happened"
             />
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <label className="btn-ghost cursor-pointer">
-                <Camera className="size-4" />
-                {photo ? "Change photo" : "Add photo"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => void onPhoto(e.target.files?.[0] ?? null)}
-                  className="sr-only"
-                />
-              </label>
-              {photo && (
-                <div className="flex items-center gap-2">
-                  <img
-                    src={photo}
-                    alt="Attached"
-                    className="size-14 rounded-lg object-cover neu-raised-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setPhoto(null)}
-                    className="btn-ghost min-h-10 px-3 text-xs"
-                  >
-                    <ImageOff className="size-3.5" /> Remove
-                  </button>
-                </div>
-              )}
-            </div>
+            <p className="field-label mt-4">Photos (optional)</p>
+            <PhotoPicker
+              photos={photos}
+              setPhotos={setPhotos}
+              preparing={preparing}
+              setPreparing={setPreparing}
+              note="Seen by command and the responder on the case. Location data is removed."
+            />
           </FormSection>
 
           <FormSection
@@ -349,7 +327,11 @@ function ReportForm() {
                   </span>
                 }
               />
-              <SummaryRow label="Photo" value={photo ? "Attached" : "None"} muted={!photo} />
+              <SummaryRow
+                label="Photos"
+                value={photos.length > 0 ? `${photos.length} attached` : "None"}
+                muted={photos.length === 0}
+              />
               <SummaryRow
                 label="Filed as"
                 value={
@@ -372,13 +354,17 @@ function ReportForm() {
                 {error}
               </p>
             )}
-            <button type="submit" disabled={busy} className="btn-neon mt-4 min-h-12 w-full">
-              {busy ? (
+            <button
+              type="submit"
+              disabled={busy || preparing > 0}
+              className="btn-neon mt-4 min-h-12 w-full"
+            >
+              {busy || preparing > 0 ? (
                 <LoaderCircle className="size-4 animate-spin" />
               ) : (
                 <Send className="size-4" />
               )}
-              {busy ? "Filing…" : "Submit report"}
+              {busy ? "Filing…" : preparing > 0 ? "Preparing photos…" : "Submit report"}
             </button>
           </div>
           <p className="px-1 text-xs text-dim">
@@ -414,8 +400,4 @@ function localNow() {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().slice(0, 16);
-}
-
-function compressImage(file: File): Promise<string> {
-  return reencodeImage(file, { maxEdge: 480, quality: 0.62 });
 }

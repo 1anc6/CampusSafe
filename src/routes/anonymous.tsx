@@ -1,30 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import {
-  Camera,
-  Check,
-  Copy,
-  EyeOff,
-  ImagePlus,
-  LoaderCircle,
-  Lock,
-  Search,
-  Send,
-  ShieldCheck,
-  X,
-} from "lucide-react";
-import { useRef, useState } from "react";
+import { Check, Copy, EyeOff, LoaderCircle, Lock, Search, Send, ShieldCheck } from "lucide-react";
+import { useState } from "react";
 import { AdaptiveShell } from "@/components/student/student-shell";
 import { FormSection } from "@/components/student/form-section";
 import { CATEGORIES, LOCATIONS, SEVERITIES, type Severity } from "@/lib/campus";
 import { createAnonymous } from "@/backend/functions/reports";
 import { cn } from "@/lib/utils";
 import { NeuSelect, placeOptions } from "@/components/shared/neu-select";
-import {
-  ANON_PHOTO_MAX,
-  ANON_PHOTO_MAX_CHARS,
-  PHOTO_INPUT_MAX_BYTES,
-  reencodeImage,
-} from "@/lib/photos";
+import { PhotoPicker, type PickedPhoto } from "@/components/shared/photo-picker";
+import { UrgentHelp } from "@/components/student/urgent-help";
+import { PHOTO_MAX } from "@/lib/photos";
 
 export const Route = createFileRoute("/anonymous")({ component: AnonymousPage });
 
@@ -49,7 +34,8 @@ const PROMISE_CHIPS = ["No name", "No IP or device", "Photo GPS removed"];
 
 const DESCRIPTION_MAX = 2000;
 
-type Photo = { key: number; url: string };
+/** One-tap answers for "Roughly when"; the field below still takes anything. */
+const WHEN_CHIPS = ["Just now", "Earlier today", "Last night", "Yesterday", "This week"];
 
 function AnonymousPage() {
   const [categoryId, setCategoryId] = useState<string>(CATEGORIES[0].id);
@@ -58,7 +44,7 @@ function AnonymousPage() {
   const [timeRange, setTimeRange] = useState("");
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState<Severity>("P2");
-  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   const [preparing, setPreparing] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -171,16 +157,41 @@ function AnonymousPage() {
                       options={placeOptions(LOCATIONS)}
                     />
                   </label>
-                  <label className="block sm:col-span-2">
-                    <span className="field-label">Roughly when</span>
+                  <div className="sm:col-span-2">
+                    <span className="field-label" id="anon-when-label">
+                      Roughly when
+                    </span>
+                    <div
+                      className="mb-2.5 flex flex-wrap gap-2"
+                      role="group"
+                      aria-labelledby="anon-when-label"
+                    >
+                      {WHEN_CHIPS.map((w) => (
+                        <button
+                          key={w}
+                          type="button"
+                          onClick={() => setTimeRange(w)}
+                          aria-pressed={timeRange === w}
+                          className={cn(
+                            "min-h-11 rounded-full px-3.5 text-xs font-semibold transition-[box-shadow,color]",
+                            timeRange === w
+                              ? "text-violet shadow-[var(--neu-inset-sm)]"
+                              : "text-fg shadow-[var(--neu-raised-xs)] hover:shadow-[var(--neu-raised-sm)]",
+                          )}
+                        >
+                          {w}
+                        </button>
+                      ))}
+                    </div>
                     <input
                       value={timeRange}
                       onChange={(e) => setTimeRange(e.target.value)}
-                      placeholder="e.g. Last night, 9–11 pm"
+                      placeholder="Or type it, e.g. Tuesday, 9–11 pm"
                       maxLength={80}
                       className="input"
+                      aria-labelledby="anon-when-label"
                     />
-                  </label>
+                  </div>
                 </div>
               </FormSection>
 
@@ -204,6 +215,7 @@ function AnonymousPage() {
                     </button>
                   ))}
                 </div>
+                {severity === "P1" && <UrgentHelp />}
               </FormSection>
 
               <FormSection
@@ -237,7 +249,7 @@ function AnonymousPage() {
               <FormSection
                 step={5}
                 title="Add photos (optional)"
-                hint={`Up to ${ANON_PHOTO_MAX}. Location, time and camera details are removed on your phone before sending.`}
+                hint={`Up to ${PHOTO_MAX}. Location, time and camera details are removed on your phone before sending.`}
                 tone="violet"
               >
                 <PhotoPicker
@@ -245,6 +257,7 @@ function AnonymousPage() {
                   setPhotos={setPhotos}
                   preparing={preparing}
                   setPreparing={setPreparing}
+                  note="Only campus command can see photos."
                 />
               </FormSection>
 
@@ -279,158 +292,6 @@ function AnonymousPage() {
         </aside>
       </div>
     </AdaptiveShell>
-  );
-}
-
-/**
- * Pick or take up to ANON_PHOTO_MAX photos. Each is re-encoded through a canvas
- * right away (see `reencodeImage`), so the thumbnail shows exactly what is sent
- * and the original file, with its EXIF/GPS, never leaves the phone.
- */
-function PhotoPicker({
-  photos,
-  setPhotos,
-  preparing,
-  setPreparing,
-}: {
-  photos: Photo[];
-  setPhotos: React.Dispatch<React.SetStateAction<Photo[]>>;
-  preparing: number;
-  setPreparing: React.Dispatch<React.SetStateAction<number>>;
-}) {
-  const nextKey = useRef(0);
-  const [problem, setProblem] = useState<string | null>(null);
-  const free = ANON_PHOTO_MAX - photos.length - preparing;
-  const full = free <= 0;
-
-  async function addFiles(list: FileList | null, input: HTMLInputElement) {
-    const files = Array.from(list ?? []);
-    input.value = ""; // so picking the same photo again still fires onChange
-    if (files.length === 0) return;
-    const take = files.slice(0, Math.max(0, free));
-    let issue: string | null =
-      files.length > take.length ? `Only ${ANON_PHOTO_MAX} photos can be attached.` : null;
-    setPreparing((n) => n + take.length);
-    await Promise.all(
-      take.map(async (file) => {
-        try {
-          if (!file.type.startsWith("image/")) throw new Error("That file isn't a photo.");
-          if (file.size > PHOTO_INPUT_MAX_BYTES) throw new Error("That photo is over 25 MB.");
-          const url = await reencodeImage(file, {
-            maxEdge: 1600,
-            quality: 0.72,
-            maxChars: ANON_PHOTO_MAX_CHARS,
-          }).catch(() => {
-            throw new Error("A photo couldn't be read. Try a JPG or PNG.");
-          });
-          const key = nextKey.current++;
-          setPhotos((prev) => (prev.length >= ANON_PHOTO_MAX ? prev : [...prev, { key, url }]));
-        } catch (err) {
-          issue = err instanceof Error ? err.message : "A photo couldn't be added.";
-        } finally {
-          setPreparing((n) => n - 1);
-        }
-      }),
-    );
-    setProblem(issue);
-  }
-
-  return (
-    <div>
-      {(photos.length > 0 || preparing > 0) && (
-        <ul className="mb-3 grid grid-cols-3 gap-2.5" aria-label="Photos to send">
-          {photos.map((p, i) => (
-            <li key={p.key} className="relative">
-              <img
-                src={p.url}
-                alt={`Photo ${i + 1} to send`}
-                className="aspect-square w-full rounded-xl object-cover neu-raised-xs"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setPhotos((prev) => prev.filter((x) => x.key !== p.key));
-                  setProblem(null);
-                }}
-                className="absolute -right-1.5 -top-1.5 grid size-10 place-items-center rounded-full"
-                aria-label={`Remove photo ${i + 1}`}
-              >
-                <span className="grid size-7 place-items-center rounded-full bg-[var(--neu-surface)] text-fg shadow-[var(--neu-raised-xs)]">
-                  <X className="size-4" aria-hidden="true" />
-                </span>
-              </button>
-            </li>
-          ))}
-          {Array.from({ length: preparing }, (_, i) => (
-            <li
-              key={`preparing-${i}`}
-              className="grid aspect-square place-items-center rounded-xl text-violet neu-well"
-            >
-              <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />
-              <span className="sr-only">Removing photo details…</span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className="grid grid-cols-2 gap-2.5">
-        <PickButton icon={Camera} label="Take photo" disabled={full} capture onFiles={addFiles} />
-        <PickButton icon={ImagePlus} label="Choose photos" disabled={full} onFiles={addFiles} />
-      </div>
-      <p
-        className="mt-2 flex items-center justify-between gap-2 text-[11px] text-dim"
-        aria-live="polite"
-      >
-        <span className="flex items-center gap-1.5">
-          <ShieldCheck className="size-3 shrink-0" aria-hidden="true" />
-          Only campus command can see photos.
-        </span>
-        <span className="tabular-nums">
-          {photos.length} / {ANON_PHOTO_MAX}
-        </span>
-      </p>
-      {problem && (
-        <p className="mt-2 text-xs text-warn" role="alert">
-          {problem}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function PickButton({
-  icon: Icon,
-  label,
-  disabled,
-  capture,
-  onFiles,
-}: {
-  icon: typeof Camera;
-  label: string;
-  disabled: boolean;
-  capture?: boolean;
-  onFiles: (files: FileList | null, input: HTMLInputElement) => void;
-}) {
-  return (
-    <label
-      className={cn(
-        "btn-ghost min-h-12 cursor-pointer text-xs has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-neon",
-        disabled && "pointer-events-none opacity-50",
-      )}
-    >
-      <Icon className="size-4" aria-hidden="true" />
-      {label}
-      <input
-        type="file"
-        accept="image/*"
-        // The rear camera on phones; desktops ignore it and open the file picker.
-        capture={capture ? "environment" : undefined}
-        multiple={!capture}
-        disabled={disabled}
-        onChange={(e) => onFiles(e.target.files, e.target)}
-        className="sr-only"
-      />
-    </label>
   );
 }
 

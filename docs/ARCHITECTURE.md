@@ -120,7 +120,8 @@ campus-safe/
 │   ├── 0009_view_trigger_foreign_keys.sql   foreign keys, updated_at trigger, open_cases view
 │   ├── 0012_push_subscriptions.sql  one row per device that turned phone notifications on
 │   ├── 0013_live_events.sql         change log + triggers that feed real-time updates
-│   └── 0014_anonymous_report_photos.sql  up to 3 metadata-stripped photos per anonymous report
+│   ├── 0014_anonymous_report_photos.sql  up to 3 metadata-stripped photos per anonymous report
+│   └── 0015_incident_photo_positions.sql  up to 3 photos per signed-in incident
 │
 ├── public/                          Static files served as-is (favicon, icons)
 ├── scripts/                         migrate.mjs (applies migrations), dev/build helpers

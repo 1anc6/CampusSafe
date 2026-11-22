@@ -1,7 +1,10 @@
-/** Photos per anonymous report. */
-export const ANON_PHOTO_MAX = 3;
-/** Largest accepted photo as a base64 data URL (~1 MB of JPEG); 3 fit well under a 4.5 MB request. */
-export const ANON_PHOTO_MAX_CHARS = 1_400_000;
+/** Photos per report (signed-in and anonymous). */
+export const PHOTO_MAX = 3;
+/** Largest accepted photo as a base64 data URL (~1 MB of JPEG); 3 fit under a 4.5 MB request. */
+export const PHOTO_MAX_CHARS = 1_400_000;
+/** Long edge photos are scaled down to: enough to read a number plate or a sign. */
+export const PHOTO_MAX_EDGE = 1600;
+export const PHOTO_QUALITY = 0.72;
 /** Originals bigger than this are refused before decoding (phone cameras stay well below it). */
 export const PHOTO_INPUT_MAX_BYTES = 25 * 1024 * 1024;
 

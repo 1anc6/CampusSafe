@@ -9,6 +9,7 @@ import type { Incident, ThreadMessage } from "@/lib/types";
 import { formatClock } from "@/lib/utils";
 import { SkeletonDetail } from "@/components/shared/skeleton";
 import { useLiveUpdates } from "@/lib/use-live-updates";
+import { PhotoGrid } from "@/components/shared/photo-picker";
 
 export const Route = createFileRoute("/_student/reports/$id")({
   staticData: { width: "wide" },
@@ -72,12 +73,10 @@ function IncidentDetail() {
             <p className="card mt-4 whitespace-pre-wrap break-words p-4 text-sm leading-relaxed">
               {incident.description}
             </p>
-            {incident.photoUrl && (
-              <img
-                src={incident.photoUrl}
-                alt="Photo you attached"
-                className="mt-4 max-h-72 w-full rounded-2xl object-cover neu-raised-xs"
-              />
+            {incident.photoUrls.length > 0 && (
+              <div className="mt-4">
+                <PhotoGrid urls={incident.photoUrls} />
+              </div>
             )}
             <h2 className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wider text-muted">
               Updates

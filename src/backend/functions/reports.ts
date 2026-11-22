@@ -38,11 +38,31 @@ import { anonymousCallerKey, rateLimit } from "@/backend/core/rate-limit";
 import { notify, notifyCaseOwner } from "@/backend/core/push";
 import { adminNewAnonymous, adminNewIncident, studentCaseReply } from "@/lib/push-messages";
 import { stripJpegMetadata } from "@/lib/jpeg-metadata";
-import { ANON_PHOTO_MAX, ANON_PHOTO_MAX_CHARS } from "@/lib/photos";
+import { PHOTO_MAX, PHOTO_MAX_CHARS } from "@/lib/photos";
 
-/** ~3 MB of base64 — the report form already downsizes photos well below this. */
-const MAX_PHOTO_CHARS = 4_000_000;
-const PHOTO_DATA_URL = /^data:image\/(png|jpe?g|webp);base64,/;
+/** A JPEG data URL, already re-encoded (metadata-free) by the report forms. */
+const photoDataUrl = z
+  .string()
+  .max(PHOTO_MAX_CHARS, "A photo is too large")
+  .regex(/^data:image\/jpeg;base64,/, "Unsupported photo format");
+const photoListSchema = z
+  .array(photoDataUrl)
+  .max(PHOTO_MAX, `At most ${PHOTO_MAX} photos`)
+  .default([]);
+
+/**
+ * Data URLs → JPEG bytes with every metadata segment removed. Runs even though
+ * the forms already re-encode, so a modified client can't store a geotagged original.
+ */
+function decodePhotos(dataUrls: string[]): Buffer[] {
+  try {
+    return dataUrls.map((p) =>
+      Buffer.from(stripJpegMetadata(Buffer.from(p.slice(p.indexOf(",") + 1), "base64"))),
+    );
+  } catch {
+    throw new Error("One of the photos could not be read. Try attaching it again.");
+  }
+}
 
 const incidentSchema = z.object({
   categoryId: z.string().max(64),
@@ -52,11 +72,9 @@ const incidentSchema = z.object({
   description: z.string().min(8).max(2000),
   severity: z.enum(["P1", "P2", "P3", "P4"]),
   occurredAt: z.string().datetime({ offset: true }),
-  photoData: z
-    .string()
-    .max(MAX_PHOTO_CHARS, "Photo is too large")
-    .regex(PHOTO_DATA_URL, "Unsupported photo format")
-    .nullable(),
+  photos: photoListSchema,
+  /** Single photo from clients older than multi-photo reports (they always sent JPEG). */
+  photoData: photoDataUrl.nullable().optional(),
   visibility: z.enum(INCIDENT_VISIBILITIES).default("identified"),
 });
 
@@ -72,7 +90,7 @@ type IncidentRow = {
   status: Incident["status"];
   visibility: IncidentVisibility;
   occurred_at: unknown;
-  has_photo: boolean;
+  photo_count: number;
   assigned_to: string | null;
   created_at: unknown;
   updated_at: unknown;
@@ -87,7 +105,7 @@ type IncidentRow = {
 const INCIDENT_SELECT = `
   select i.id, i.user_id, i.category_id, i.location_id, i.lat, i.lng, i.description, i.severity,
          i.status, i.visibility, i.occurred_at, i.assigned_to, i.created_at, i.updated_at,
-         exists (select 1 from incident_photos ph where ph.incident_id = i.id) as has_photo,
+         (select count(*)::int from incident_photos ph where ph.incident_id = i.id) as photo_count,
          p.name as reporter_name, p.email as reporter_email, p.phone as reporter_phone,
          p.student_id as reporter_student_id, p.course as reporter_course,
          p.avatar_url as reporter_avatar
@@ -132,18 +150,13 @@ function mapIncident(row: IncidentRow, seesReporter: boolean, isOwner: boolean):
     severity: row.severity,
     status: row.status,
     occurredAt: iso(row.occurred_at),
-    photoUrl: row.has_photo ? `/api/photos/incident/${row.id}` : null,
+    photoUrls: Array.from({ length: Number(row.photo_count) || 0 }, (_, n) =>
+      n === 0 ? `/api/photos/incident/${row.id}` : `/api/photos/incident/${row.id}?n=${n}`,
+    ),
     assignedTo: row.assigned_to,
     createdAt: iso(row.created_at),
     updatedAt: iso(row.updated_at),
   };
-}
-
-/** `data:image/jpeg;base64,...` → mime + bytes for the incident_photos table. */
-function decodePhoto(dataUrl: string): { mime: string; bytes: Buffer } {
-  const ext = PHOTO_DATA_URL.exec(dataUrl)?.[1] ?? "jpeg";
-  const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
-  return { mime, bytes: Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64") };
 }
 
 export const createIncident = createServerFn({ method: "POST" })
@@ -155,6 +168,9 @@ export const createIncident = createServerFn({ method: "POST" })
     if (!CATEGORIES.some((c) => c.id === data.categoryId)) throw new Error("Invalid category");
     if (data.locationId && !LOCATIONS.some((l) => l.id === data.locationId))
       throw new Error("Invalid location");
+    const photos = decodePhotos(
+      data.photos.length > 0 ? data.photos : data.photoData ? [data.photoData] : [],
+    );
     const sql = await getSql();
     const coords =
       data.lat != null && data.lng != null
@@ -171,11 +187,10 @@ export const createIncident = createServerFn({ method: "POST" })
         ${data.occurredAt}, ${data.visibility}
       )
     `;
-    if (data.photoData) {
-      const photo = decodePhoto(data.photoData);
+    for (const [position, bytes] of photos.entries()) {
       await sql`
-        insert into incident_photos (incident_id, mime, data)
-        values (${id}, ${photo.mime}, ${photo.bytes})
+        insert into incident_photos (incident_id, position, mime, data)
+        values (${id}, ${position}, ${"image/jpeg"}, ${bytes})
       `;
     }
     await addSystemMessage(
@@ -305,31 +320,14 @@ export const createAnonymous = createServerFn({ method: "POST" })
       timeRange: z.string().min(2).max(80),
       description: z.string().min(8).max(2000),
       severity: z.enum(["P1", "P2", "P3", "P4"]),
-      // JPEG data URLs, already re-encoded (metadata-free) by the form.
-      photos: z
-        .array(
-          z
-            .string()
-            .max(ANON_PHOTO_MAX_CHARS, "A photo is too large")
-            .regex(/^data:image\/jpeg;base64,/, "Unsupported photo format"),
-        )
-        .max(ANON_PHOTO_MAX, `At most ${ANON_PHOTO_MAX} photos`)
-        .default([]),
+      photos: photoListSchema,
     }),
   )
   .handler(async ({ data }) => {
     await rateLimit(anonymousCallerKey("anon-create"), 5, 60 * 60_000);
     if (!CATEGORIES.some((c) => c.id === data.categoryId)) throw new Error("Invalid category");
     if (!LOCATIONS.some((l) => l.id === data.locationId)) throw new Error("Invalid location");
-    // Strip again server-side so a modified client can't store a geotagged original.
-    let photos: Buffer[];
-    try {
-      photos = data.photos.map((p) =>
-        Buffer.from(stripJpegMetadata(Buffer.from(p.slice(p.indexOf(",") + 1), "base64"))),
-      );
-    } catch {
-      throw new Error("One of the photos could not be read. Try attaching it again.");
-    }
+    const photos = decodePhotos(data.photos);
     const sql = await getSql();
     const id = newId();
     const code = trackingCode();

@@ -28,6 +28,7 @@ import { getIncident, postThread, staffSetIncidentStatus } from "@/backend/funct
 import type { Incident, ThreadMessage } from "@/lib/types";
 import { formatClock } from "@/lib/utils";
 import { useLiveUpdates } from "@/lib/use-live-updates";
+import { PhotoGrid } from "@/components/shared/photo-picker";
 
 export const Route = createFileRoute("/staff/incidents/$id")({ component: AssignedIncident });
 
@@ -107,12 +108,10 @@ function AssignedIncident() {
             <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
               {incident.description}
             </p>
-            {incident.photoUrl && (
-              <img
-                src={incident.photoUrl}
-                alt="Photo attached to the report"
-                className="mt-4 max-h-72 w-full rounded-xl object-cover neu-raised-xs"
-              />
+            {incident.photoUrls.length > 0 && (
+              <div className="mt-4">
+                <PhotoGrid urls={incident.photoUrls} />
+              </div>
             )}
           </Panel>
           {pos && (

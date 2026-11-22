@@ -102,8 +102,8 @@ export type Incident = {
   severity: Severity;
   status: IncidentStatus;
   occurredAt: string;
-  /** Signed-in photo endpoint, or null when no photo was attached. */
-  photoUrl: string | null;
+  /** Signed-in photo endpoints (up to 3), empty when no photo was attached. */
+  photoUrls: string[];
   assignedTo: string | null;
   createdAt: string;
   updatedAt: string;

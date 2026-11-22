@@ -11,6 +11,7 @@ import type { ThreadMessage } from "@/lib/types";
 import { cn, formatClock } from "@/lib/utils";
 import { SkeletonList } from "@/components/shared/skeleton";
 import { useLiveUpdates } from "@/lib/use-live-updates";
+import { PhotoGrid } from "@/components/shared/photo-picker";
 
 export const Route = createFileRoute("/admin/anonymous")({ component: AnonymousPage });
 
@@ -108,27 +109,7 @@ function AnonymousCase({ row, onChanged }: { row: Row; onChanged: () => Promise<
       <p className="text-xs text-muted">When: {row.timeRange}</p>
       {row.photoUrls.length > 0 && (
         <Panel title={`Photos (${row.photoUrls.length})`}>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {row.photoUrls.map((url, n) => (
-              <li key={url}>
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block overflow-hidden rounded-xl neu-raised-xs"
-                  aria-label={`Open photo ${n + 1} of ${row.photoUrls.length} full size`}
-                >
-                  <img
-                    src={url}
-                    alt={`Photo ${n + 1} attached to the anonymous report`}
-                    loading="lazy"
-                    className="aspect-[4/3] w-full object-cover"
-                  />
-                </a>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-xs text-dim">Location and camera metadata were removed.</p>
+          <PhotoGrid urls={row.photoUrls} note="Location and camera metadata were removed." />
         </Panel>
       )}
       <Panel title="Status">
