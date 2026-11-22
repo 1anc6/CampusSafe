@@ -119,7 +119,8 @@ campus-safe/
 │   ├── 0008_sos_scheduling.sql      one open SOS per student, responder semaphore count
 │   ├── 0009_view_trigger_foreign_keys.sql   foreign keys, updated_at trigger, open_cases view
 │   ├── 0012_push_subscriptions.sql  one row per device that turned phone notifications on
-│   └── 0013_live_events.sql         change log + triggers that feed real-time updates
+│   ├── 0013_live_events.sql         change log + triggers that feed real-time updates
+│   └── 0014_anonymous_report_photos.sql  up to 3 metadata-stripped photos per anonymous report
 │
 ├── public/                          Static files served as-is (favicon, icons)
 ├── scripts/                         migrate.mjs (applies migrations), dev/build helpers
@@ -179,6 +180,7 @@ Every backend function follows the same pattern:
 | `sos_locations` | Live GPS trail — many points per SOS (**foreign key**, cascade delete) |
 | `incidents` | Reports filed by signed-in students |
 | `anonymous_reports` | Reports with no identity — only a random tracking code |
+| `anonymous_report_photos` | Up to 3 photos per anonymous report, EXIF/GPS stripped; no uploader, device or time columns; command-only |
 | `threads` | Messages on a case (student ↔ command ↔ responder) |
 | `responders` | Responder units |
 | `audit_log` | Who did what, when — the evidence trail |

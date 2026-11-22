@@ -618,10 +618,12 @@ export const listAnonymousAdmin = createServerFn({ method: "GET" })
     await requireAdmin(context.userId);
     const sql = await getSql();
     const rows = await sql`
-      select id, tracking_code, category_id, location_id, role, time_range,
-             description, severity, status, created_at
-      from anonymous_reports
-      order by created_at desc
+      select a.id, a.tracking_code, a.category_id, a.location_id, a.role, a.time_range,
+             a.description, a.severity, a.status, a.created_at,
+             (select count(*)::int from anonymous_report_photos ph where ph.report_id = a.id)
+               as photo_count
+      from anonymous_reports a
+      order by a.created_at desc
       limit 80
     `;
     return (
@@ -636,6 +638,7 @@ export const listAnonymousAdmin = createServerFn({ method: "GET" })
         severity: Severity;
         status: string;
         created_at: unknown;
+        photo_count: number;
       }[]
     ).map((r) => ({
       id: r.id,
@@ -650,6 +653,11 @@ export const listAnonymousAdmin = createServerFn({ method: "GET" })
       severity: r.severity,
       status: r.status,
       createdAt: iso(r.created_at),
+      /** Signed-in, command-only image URLs (`/api/photos/anonymous/$id/$n`). */
+      photoUrls: Array.from(
+        { length: Number(r.photo_count) || 0 },
+        (_, n) => `/api/photos/anonymous/${r.id}/${n}`,
+      ),
     }));
   });
 

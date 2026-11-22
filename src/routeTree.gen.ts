@@ -40,6 +40,7 @@ import { Route as ApiCronRetentionRouteImport } from './routes/api/cron/retentio
 import { Route as ApiCronWalksRouteImport } from './routes/api/cron/walks'
 import { Route as StaffIncidentsIdRouteImport } from './routes/staff/incidents.$id'
 import { Route as ApiPhotosIncidentIdRouteImport } from './routes/api/photos/incident.$id'
+import { Route as ApiPhotosAnonymousIdNRouteImport } from './routes/api/photos/anonymous.$id.$n'
 
 const StudentRouteRoute = StudentRouteRouteImport.update({
   id: '/_student',
@@ -195,6 +196,11 @@ const ApiPhotosIncidentIdRoute = ApiPhotosIncidentIdRouteImport.update({
   path: '/api/photos/incident/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPhotosAnonymousIdNRoute = ApiPhotosAnonymousIdNRouteImport.update({
+  id: '/api/photos/anonymous/$id/$n',
+  path: '/api/photos/anonymous/$id/$n',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof StudentIndexRoute
@@ -227,6 +233,7 @@ export interface FileRoutesByFullPath {
   '/admin/incidents/': typeof AdminIncidentsIndexRoute
   '/admin/sos/': typeof AdminSosIndexRoute
   '/api/photos/incident/$id': typeof ApiPhotosIncidentIdRoute
+  '/api/photos/anonymous/$id/$n': typeof ApiPhotosAnonymousIdNRoute
 }
 export interface FileRoutesByTo {
   '/anonymous': typeof AnonymousRoute
@@ -257,6 +264,7 @@ export interface FileRoutesByTo {
   '/admin/incidents': typeof AdminIncidentsIndexRoute
   '/admin/sos': typeof AdminSosIndexRoute
   '/api/photos/incident/$id': typeof ApiPhotosIncidentIdRoute
+  '/api/photos/anonymous/$id/$n': typeof ApiPhotosAnonymousIdNRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -291,6 +299,7 @@ export interface FileRoutesById {
   '/admin/incidents/': typeof AdminIncidentsIndexRoute
   '/admin/sos/': typeof AdminSosIndexRoute
   '/api/photos/incident/$id': typeof ApiPhotosIncidentIdRoute
+  '/api/photos/anonymous/$id/$n': typeof ApiPhotosAnonymousIdNRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -325,6 +334,7 @@ export interface FileRouteTypes {
     | '/admin/incidents/'
     | '/admin/sos/'
     | '/api/photos/incident/$id'
+    | '/api/photos/anonymous/$id/$n'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/anonymous'
@@ -355,6 +365,7 @@ export interface FileRouteTypes {
     | '/admin/incidents'
     | '/admin/sos'
     | '/api/photos/incident/$id'
+    | '/api/photos/anonymous/$id/$n'
   id:
     | '__root__'
     | '/_student'
@@ -388,6 +399,7 @@ export interface FileRouteTypes {
     | '/admin/incidents/'
     | '/admin/sos/'
     | '/api/photos/incident/$id'
+    | '/api/photos/anonymous/$id/$n'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -405,6 +417,7 @@ export interface RootRouteChildren {
   ApiCronRetentionRoute: typeof ApiCronRetentionRoute
   ApiCronWalksRoute: typeof ApiCronWalksRoute
   ApiPhotosIncidentIdRoute: typeof ApiPhotosIncidentIdRoute
+  ApiPhotosAnonymousIdNRoute: typeof ApiPhotosAnonymousIdNRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -626,6 +639,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPhotosIncidentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/photos/anonymous/$id/$n': {
+      id: '/api/photos/anonymous/$id/$n'
+      path: '/api/photos/anonymous/$id/$n'
+      fullPath: '/api/photos/anonymous/$id/$n'
+      preLoaderRoute: typeof ApiPhotosAnonymousIdNRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -708,6 +728,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCronRetentionRoute: ApiCronRetentionRoute,
   ApiCronWalksRoute: ApiCronWalksRoute,
   ApiPhotosIncidentIdRoute: ApiPhotosIncidentIdRoute,
+  ApiPhotosAnonymousIdNRoute: ApiPhotosAnonymousIdNRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

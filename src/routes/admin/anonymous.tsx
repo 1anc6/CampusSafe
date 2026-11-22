@@ -106,6 +106,31 @@ function AnonymousCase({ row, onChanged }: { row: Row; onChanged: () => Promise<
     <div className="space-y-4 border-t border-line p-4">
       <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{row.description}</p>
       <p className="text-xs text-muted">When: {row.timeRange}</p>
+      {row.photoUrls.length > 0 && (
+        <Panel title={`Photos (${row.photoUrls.length})`}>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {row.photoUrls.map((url, n) => (
+              <li key={url}>
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block overflow-hidden rounded-xl neu-raised-xs"
+                  aria-label={`Open photo ${n + 1} of ${row.photoUrls.length} full size`}
+                >
+                  <img
+                    src={url}
+                    alt={`Photo ${n + 1} attached to the anonymous report`}
+                    loading="lazy"
+                    className="aspect-[4/3] w-full object-cover"
+                  />
+                </a>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-dim">Location and camera metadata were removed.</p>
+        </Panel>
+      )}
       <Panel title="Status">
         <StatusButtons
           current={row.status}

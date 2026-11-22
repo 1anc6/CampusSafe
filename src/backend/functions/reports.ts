@@ -37,6 +37,8 @@ import {
 import { anonymousCallerKey, rateLimit } from "@/backend/core/rate-limit";
 import { notify, notifyCaseOwner } from "@/backend/core/push";
 import { adminNewAnonymous, adminNewIncident, studentCaseReply } from "@/lib/push-messages";
+import { stripJpegMetadata } from "@/lib/jpeg-metadata";
+import { ANON_PHOTO_MAX, ANON_PHOTO_MAX_CHARS } from "@/lib/photos";
 
 /** ~3 MB of base64 — the report form already downsizes photos well below this. */
 const MAX_PHOTO_CHARS = 4_000_000;
@@ -303,13 +305,31 @@ export const createAnonymous = createServerFn({ method: "POST" })
       timeRange: z.string().min(2).max(80),
       description: z.string().min(8).max(2000),
       severity: z.enum(["P1", "P2", "P3", "P4"]),
-      photoStripped: z.boolean(),
+      // JPEG data URLs, already re-encoded (metadata-free) by the form.
+      photos: z
+        .array(
+          z
+            .string()
+            .max(ANON_PHOTO_MAX_CHARS, "A photo is too large")
+            .regex(/^data:image\/jpeg;base64,/, "Unsupported photo format"),
+        )
+        .max(ANON_PHOTO_MAX, `At most ${ANON_PHOTO_MAX} photos`)
+        .default([]),
     }),
   )
   .handler(async ({ data }) => {
     await rateLimit(anonymousCallerKey("anon-create"), 5, 60 * 60_000);
     if (!CATEGORIES.some((c) => c.id === data.categoryId)) throw new Error("Invalid category");
     if (!LOCATIONS.some((l) => l.id === data.locationId)) throw new Error("Invalid location");
+    // Strip again server-side so a modified client can't store a geotagged original.
+    let photos: Buffer[];
+    try {
+      photos = data.photos.map((p) =>
+        Buffer.from(stripJpegMetadata(Buffer.from(p.slice(p.indexOf(",") + 1), "base64"))),
+      );
+    } catch {
+      throw new Error("One of the photos could not be read. Try attaching it again.");
+    }
     const sql = await getSql();
     const id = newId();
     const code = trackingCode();
@@ -319,9 +339,21 @@ export const createAnonymous = createServerFn({ method: "POST" })
         description, severity, photo_stripped
       ) values (
         ${id}, ${code}, ${data.categoryId}, ${data.locationId}, ${data.role},
-        ${data.timeRange}, ${data.description}, ${data.severity}, ${data.photoStripped}
+        ${data.timeRange}, ${data.description}, ${data.severity}, ${photos.length > 0}
       )
     `;
+    try {
+      for (const [position, bytes] of photos.entries()) {
+        await sql`
+          insert into anonymous_report_photos (report_id, position, mime, data)
+          values (${id}, ${position}, ${"image/jpeg"}, ${bytes})
+        `;
+      }
+    } catch (err) {
+      // No half-filed report: the reporter can't come back to add the photos later.
+      await sql`delete from anonymous_reports where id = ${id}`;
+      throw err;
+    }
     await addSystemMessage(
       "anonymous",
       id,
@@ -343,6 +375,7 @@ function mapAnon(row: {
   severity: AnonymousReport["severity"];
   status: AnonymousReport["status"];
   photo_stripped: boolean;
+  photo_count: number;
   created_at: unknown;
   updated_at: unknown;
 }): AnonymousReport {
@@ -359,6 +392,7 @@ function mapAnon(row: {
     severity: row.severity,
     status: row.status,
     photoStripped: Boolean(row.photo_stripped),
+    photoCount: Number(row.photo_count) || 0,
     createdAt: iso(row.created_at),
     updatedAt: iso(row.updated_at),
   };
@@ -371,7 +405,13 @@ export const trackAnonymous = createServerFn({ method: "GET" })
     await rateLimit(anonymousCallerKey("anon-track"), 30, 10 * 60_000);
     const sql = await getSql();
     const code = data.code.trim().toUpperCase();
-    const rows = await sql`select * from anonymous_reports where tracking_code = ${code}`;
+    const rows = await sql`
+      select a.*,
+             (select count(*)::int from anonymous_report_photos ph where ph.report_id = a.id)
+               as photo_count
+      from anonymous_reports a
+      where a.tracking_code = ${code}
+    `;
     const row = (rows as Parameters<typeof mapAnon>[0][])[0];
     if (!row) return { report: null, messages: [] as ThreadMessage[] };
     const messages = await loadThread("anonymous", row.id);

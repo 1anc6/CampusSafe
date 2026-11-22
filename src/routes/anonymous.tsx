@@ -1,12 +1,30 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Check, Copy, EyeOff, LoaderCircle, Lock, Search, Send, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import {
+  Camera,
+  Check,
+  Copy,
+  EyeOff,
+  ImagePlus,
+  LoaderCircle,
+  Lock,
+  Search,
+  Send,
+  ShieldCheck,
+  X,
+} from "lucide-react";
+import { useRef, useState } from "react";
 import { AdaptiveShell } from "@/components/student/student-shell";
 import { FormSection } from "@/components/student/form-section";
 import { CATEGORIES, LOCATIONS, SEVERITIES, type Severity } from "@/lib/campus";
 import { createAnonymous } from "@/backend/functions/reports";
 import { cn } from "@/lib/utils";
 import { NeuSelect, placeOptions } from "@/components/shared/neu-select";
+import {
+  ANON_PHOTO_MAX,
+  ANON_PHOTO_MAX_CHARS,
+  PHOTO_INPUT_MAX_BYTES,
+  reencodeImage,
+} from "@/lib/photos";
 
 export const Route = createFileRoute("/anonymous")({ component: AnonymousPage });
 
@@ -21,9 +39,17 @@ const ROLES: [Role, string][] = [
 const PROMISES = [
   "No name or account attached",
   "No IP address or device details stored",
-  "Command only sees what you type",
+  "Photo location and camera details removed",
+  "Command only sees what you send",
   "Follow up with a private tracking code",
 ];
+
+/** Short versions of the promise for the phone header, where the full card sits far below. */
+const PROMISE_CHIPS = ["No name", "No IP or device", "Photo GPS removed"];
+
+const DESCRIPTION_MAX = 2000;
+
+type Photo = { key: number; url: string };
 
 function AnonymousPage() {
   const [categoryId, setCategoryId] = useState<string>(CATEGORIES[0].id);
@@ -32,13 +58,15 @@ function AnonymousPage() {
   const [timeRange, setTimeRange] = useState("");
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState<Severity>("P2");
-  const [photo, setPhoto] = useState(false);
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [preparing, setPreparing] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [code, setCode] = useState<string | null>(null);
+  const [sent, setSent] = useState<{ code: string; photos: number } | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (preparing > 0) return;
     if (timeRange.trim().length < 2) {
       setError("Roughly when did it happen? A range is fine.");
       return;
@@ -58,16 +86,19 @@ function AnonymousPage() {
           timeRange: timeRange.trim(),
           description: description.trim(),
           severity,
-          photoStripped: photo,
+          photos: photos.map((p) => p.url),
         },
       });
-      setCode(res.code);
+      setSent({ code: res.code, photos: photos.length });
+      window.scrollTo({ top: 0 });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not send");
     } finally {
       setBusy(false);
     }
   }
+
+  const submitProps = { busy, preparing: preparing > 0, error };
 
   return (
     <AdaptiveShell anon width="wide">
@@ -81,12 +112,24 @@ function AnonymousPage() {
           command what happened without revealing who you are. You'll get a private code to follow
           the case.
         </p>
+        {!sent && (
+          <ul className="mt-3 flex flex-wrap gap-1.5 lg:hidden" aria-label="Privacy">
+            {PROMISE_CHIPS.map((p) => (
+              <li
+                key={p}
+                className="inline-flex items-center gap-1 rounded-full bg-violet/15 px-2.5 py-1 text-[11px] font-semibold text-violet"
+              >
+                <Check className="size-3" aria-hidden="true" /> {p}
+              </li>
+            ))}
+          </ul>
+        )}
       </header>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div className="min-w-0">
-          {code ? (
-            <CodeCard code={code} />
+          {sent ? (
+            <CodeCard code={sent.code} photos={sent.photos} />
           ) : (
             <form id="anon-form" onSubmit={submit} className="space-y-4" noValidate>
               <FormSection step={1} title="Your connection to it" tone="violet">
@@ -170,36 +213,53 @@ function AnonymousPage() {
                 tone="violet"
               >
                 <textarea
+                  id="anon-description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={5}
+                  maxLength={DESCRIPTION_MAX}
                   placeholder="What happened, and anything command should know."
                   className="input min-h-32"
                   aria-label="Description"
+                  aria-describedby="anon-description-count"
                 />
-                <label className="mt-3 flex min-h-11 items-center gap-3 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={photo}
-                    onChange={(e) => setPhoto(e.target.checked)}
-                    className="size-4 accent-violet"
-                  />
-                  I have a photo (metadata will be stripped)
-                </label>
+                <p
+                  id="anon-description-count"
+                  className={cn(
+                    "mt-1.5 text-right text-[11px] tabular-nums",
+                    description.length > DESCRIPTION_MAX - 100 ? "text-warn" : "text-dim",
+                  )}
+                >
+                  {description.length} / {DESCRIPTION_MAX}
+                </p>
+              </FormSection>
+
+              <FormSection
+                step={5}
+                title="Add photos (optional)"
+                hint={`Up to ${ANON_PHOTO_MAX}. Location, time and camera details are removed on your phone before sending.`}
+                tone="violet"
+              >
+                <PhotoPicker
+                  photos={photos}
+                  setPhotos={setPhotos}
+                  preparing={preparing}
+                  setPreparing={setPreparing}
+                />
               </FormSection>
 
               {/* Phones / tablets: submit sits under the form. */}
               <div className="lg:hidden">
-                <SubmitBlock busy={busy} error={error} />
+                <SubmitBlock {...submitProps} />
               </div>
             </form>
           )}
         </div>
 
         <aside className="space-y-3 lg:sticky lg:top-8">
-          {!code && (
+          {!sent && (
             <div className="card hidden p-4 lg:block">
-              <SubmitBlock busy={busy} error={error} formId="anon-form" />
+              <SubmitBlock {...submitProps} formId="anon-form" />
             </div>
           )}
           <div className="card p-4">
@@ -222,12 +282,166 @@ function AnonymousPage() {
   );
 }
 
+/**
+ * Pick or take up to ANON_PHOTO_MAX photos. Each is re-encoded through a canvas
+ * right away (see `reencodeImage`), so the thumbnail shows exactly what is sent
+ * and the original file, with its EXIF/GPS, never leaves the phone.
+ */
+function PhotoPicker({
+  photos,
+  setPhotos,
+  preparing,
+  setPreparing,
+}: {
+  photos: Photo[];
+  setPhotos: React.Dispatch<React.SetStateAction<Photo[]>>;
+  preparing: number;
+  setPreparing: React.Dispatch<React.SetStateAction<number>>;
+}) {
+  const nextKey = useRef(0);
+  const [problem, setProblem] = useState<string | null>(null);
+  const free = ANON_PHOTO_MAX - photos.length - preparing;
+  const full = free <= 0;
+
+  async function addFiles(list: FileList | null, input: HTMLInputElement) {
+    const files = Array.from(list ?? []);
+    input.value = ""; // so picking the same photo again still fires onChange
+    if (files.length === 0) return;
+    const take = files.slice(0, Math.max(0, free));
+    let issue: string | null =
+      files.length > take.length ? `Only ${ANON_PHOTO_MAX} photos can be attached.` : null;
+    setPreparing((n) => n + take.length);
+    await Promise.all(
+      take.map(async (file) => {
+        try {
+          if (!file.type.startsWith("image/")) throw new Error("That file isn't a photo.");
+          if (file.size > PHOTO_INPUT_MAX_BYTES) throw new Error("That photo is over 25 MB.");
+          const url = await reencodeImage(file, {
+            maxEdge: 1600,
+            quality: 0.72,
+            maxChars: ANON_PHOTO_MAX_CHARS,
+          }).catch(() => {
+            throw new Error("A photo couldn't be read. Try a JPG or PNG.");
+          });
+          const key = nextKey.current++;
+          setPhotos((prev) => (prev.length >= ANON_PHOTO_MAX ? prev : [...prev, { key, url }]));
+        } catch (err) {
+          issue = err instanceof Error ? err.message : "A photo couldn't be added.";
+        } finally {
+          setPreparing((n) => n - 1);
+        }
+      }),
+    );
+    setProblem(issue);
+  }
+
+  return (
+    <div>
+      {(photos.length > 0 || preparing > 0) && (
+        <ul className="mb-3 grid grid-cols-3 gap-2.5" aria-label="Photos to send">
+          {photos.map((p, i) => (
+            <li key={p.key} className="relative">
+              <img
+                src={p.url}
+                alt={`Photo ${i + 1} to send`}
+                className="aspect-square w-full rounded-xl object-cover neu-raised-xs"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setPhotos((prev) => prev.filter((x) => x.key !== p.key));
+                  setProblem(null);
+                }}
+                className="absolute -right-1.5 -top-1.5 grid size-10 place-items-center rounded-full"
+                aria-label={`Remove photo ${i + 1}`}
+              >
+                <span className="grid size-7 place-items-center rounded-full bg-[var(--neu-surface)] text-fg shadow-[var(--neu-raised-xs)]">
+                  <X className="size-4" aria-hidden="true" />
+                </span>
+              </button>
+            </li>
+          ))}
+          {Array.from({ length: preparing }, (_, i) => (
+            <li
+              key={`preparing-${i}`}
+              className="grid aspect-square place-items-center rounded-xl text-violet neu-well"
+            >
+              <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />
+              <span className="sr-only">Removing photo details…</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="grid grid-cols-2 gap-2.5">
+        <PickButton icon={Camera} label="Take photo" disabled={full} capture onFiles={addFiles} />
+        <PickButton icon={ImagePlus} label="Choose photos" disabled={full} onFiles={addFiles} />
+      </div>
+      <p
+        className="mt-2 flex items-center justify-between gap-2 text-[11px] text-dim"
+        aria-live="polite"
+      >
+        <span className="flex items-center gap-1.5">
+          <ShieldCheck className="size-3 shrink-0" aria-hidden="true" />
+          Only campus command can see photos.
+        </span>
+        <span className="tabular-nums">
+          {photos.length} / {ANON_PHOTO_MAX}
+        </span>
+      </p>
+      {problem && (
+        <p className="mt-2 text-xs text-warn" role="alert">
+          {problem}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function PickButton({
+  icon: Icon,
+  label,
+  disabled,
+  capture,
+  onFiles,
+}: {
+  icon: typeof Camera;
+  label: string;
+  disabled: boolean;
+  capture?: boolean;
+  onFiles: (files: FileList | null, input: HTMLInputElement) => void;
+}) {
+  return (
+    <label
+      className={cn(
+        "btn-ghost min-h-12 cursor-pointer text-xs has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-neon",
+        disabled && "pointer-events-none opacity-50",
+      )}
+    >
+      <Icon className="size-4" aria-hidden="true" />
+      {label}
+      <input
+        type="file"
+        accept="image/*"
+        // The rear camera on phones; desktops ignore it and open the file picker.
+        capture={capture ? "environment" : undefined}
+        multiple={!capture}
+        disabled={disabled}
+        onChange={(e) => onFiles(e.target.files, e.target)}
+        className="sr-only"
+      />
+    </label>
+  );
+}
+
 function SubmitBlock({
   busy,
+  preparing,
   error,
   formId,
 }: {
   busy: boolean;
+  preparing: boolean;
   error: string | null;
   formId?: string;
 }) {
@@ -241,9 +455,18 @@ function SubmitBlock({
           {error}
         </p>
       )}
-      <button type="submit" form={formId} disabled={busy} className="btn-neon min-h-12 w-full">
-        {busy ? <LoaderCircle className="size-4 animate-spin" /> : <Send className="size-4" />}
-        {busy ? "Sending…" : "Send anonymously"}
+      <button
+        type="submit"
+        form={formId}
+        disabled={busy || preparing}
+        className="btn-neon min-h-12 w-full"
+      >
+        {busy || preparing ? (
+          <LoaderCircle className="size-4 animate-spin" />
+        ) : (
+          <Send className="size-4" />
+        )}
+        {busy ? "Sending…" : preparing ? "Preparing photos…" : "Send anonymously"}
       </button>
       <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-dim">
         <Lock className="size-3" /> Sent without your name or account
@@ -252,7 +475,7 @@ function SubmitBlock({
   );
 }
 
-function CodeCard({ code }: { code: string }) {
+function CodeCard({ code, photos }: { code: string; photos: number }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="card flex flex-col items-center px-5 py-10 text-center">
@@ -260,6 +483,12 @@ function CodeCard({ code }: { code: string }) {
         <ShieldCheck className="size-6" />
       </span>
       <p className="mt-4 font-display text-xl font-semibold">Report sent anonymously</p>
+      {photos > 0 && (
+        <p className="mt-1 text-sm text-muted">
+          {photos === 1 ? "1 photo" : `${photos} photos`} attached, with location and camera details
+          removed.
+        </p>
+      )}
       <p className="mt-6 text-xs font-semibold uppercase tracking-wider text-muted">
         Your private tracking code
       </p>

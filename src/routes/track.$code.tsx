@@ -68,6 +68,12 @@ function TrackPage() {
             {report.locationName} · {report.timeRange} · {report.role}
           </p>
           <p className="card p-4 text-sm">{report.description}</p>
+          {report.photoCount > 0 && (
+            <p className="text-xs text-muted">
+              {report.photoCount === 1 ? "1 photo" : `${report.photoCount} photos`} attached ·
+              location and camera details removed · visible to campus command only
+            </p>
+          )}
           <div className="card p-4">
             <StatusStepper steps={INCIDENT_STATUSES} current={report.status} />
           </div>

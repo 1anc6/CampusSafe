@@ -32,6 +32,7 @@ import { useViewer } from "@/lib/auth/use-viewer";
 import { cn } from "@/lib/utils";
 import { NeuSelect, placeOptions } from "@/components/shared/neu-select";
 import type { IncidentVisibility } from "@/lib/access";
+import { reencodeImage } from "@/lib/photos";
 
 export const Route = createFileRoute("/_student/report")({
   staticData: { width: "wide" },
@@ -415,14 +416,6 @@ function localNow() {
   return d.toISOString().slice(0, 16);
 }
 
-async function compressImage(file: File): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, 480 / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return "";
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.62);
+function compressImage(file: File): Promise<string> {
+  return reencodeImage(file, { maxEdge: 480, quality: 0.62 });
 }

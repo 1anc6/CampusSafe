@@ -11,7 +11,7 @@ export function retentionDays(): number {
 /**
  * De-identify reports that have been resolved or closed for longer than the
  * retention period: the photo is deleted, the link to the student's account is
- * cut, and the anonymous tracking thread is emptied. What happened, where and
+ * cut, and the anonymous tracking thread and photos are deleted. What happened, where and
  * when stays, so campus statistics and hotspot maps keep working.
  */
 export async function purgeExpiredReports(): Promise<{ incidents: number; anonymous: number }> {
@@ -32,7 +32,7 @@ export async function purgeExpiredReports(): Promise<{ incidents: number; anonym
       where id = any(${ids}::text[])
     `;
   }
-  // Anonymous reports carry no identity, but their replies can: clear old threads.
+  // Anonymous reports carry no identity, but their replies and photos can: clear old threads…
   const anon = await sql<{ id: string }>`
     delete from threads
     where kind = 'anonymous' and author_role <> 'system' and subject_id in (
@@ -41,7 +41,16 @@ export async function purgeExpiredReports(): Promise<{ incidents: number; anonym
     )
     returning subject_id as id
   `;
-  const anonCount = new Set(anon.map((r) => r.id)).size;
+  // …and their photos go too.
+  const anonPhotos = await sql<{ id: string }>`
+    delete from anonymous_report_photos
+    where report_id in (
+      select id from anonymous_reports
+      where status in ('resolved', 'closed') and updated_at < now() - make_interval(days => ${days})
+    )
+    returning report_id as id
+  `;
+  const anonCount = new Set([...anon, ...anonPhotos].map((r) => r.id)).size;
   if (ids.length || anonCount) {
     await audit(
       null,

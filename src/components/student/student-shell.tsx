@@ -197,12 +197,15 @@ export function StudentShell({
               className="fixed inset-x-3 bottom-[max(0.75rem,var(--safe-bottom))] z-30 md:hidden"
               aria-label="Student navigation"
             >
-              <ul className="glass-bar vt-tabbar mx-auto grid max-w-lg grid-cols-5 rounded-[28px] px-1.5">
+              {/* The centre column is a little narrower than the round SOS dish (84px + 12px rim):
+                  the dish curves away above the labels, and the 44px icon pills stop short of it. */}
+              <ul className="glass-bar vt-tabbar mx-auto grid max-w-lg grid-cols-[repeat(2,minmax(0,1fr))_5.5rem_repeat(2,minmax(0,1fr))] rounded-[28px] px-1.5">
                 {TABS.slice(0, 2).map((t) => (
                   <TabLink key={t.to} tab={t} on={tabActive(pathname, t.to)} />
                 ))}
-                {/* SOS rides up out of the bar so it is the biggest target on screen. */}
-                <li className="relative flex justify-center">
+                {/* SOS rides up out of the bar so it is the biggest target on screen. Its own
+                    stacking layer keeps it above the tabs' transformed (scaled) pills. */}
+                <li className="relative z-10 flex justify-center">
                   <span className="absolute -top-9 rounded-full bg-[var(--neu-surface)] p-1.5">
                     <SosTrigger size="md" />
                   </span>
@@ -221,24 +224,25 @@ export function StudentShell({
 
 function TabLink({ tab, on }: { tab: (typeof TABS)[number]; on: boolean }) {
   return (
-    <li>
+    <li className="min-w-0">
       <Link
         to={tab.to}
         aria-current={on ? "page" : undefined}
         className={cn(
-          "flex min-h-[62px] flex-col items-center justify-center gap-0.5 rounded-2xl text-[10.5px] font-medium transition-colors duration-200 focus-visible:outline-offset-[-4px]",
+          "flex min-h-[62px] flex-col items-center justify-center gap-0.5 rounded-2xl text-[10.5px] font-medium max-[379px]:text-[10px] transition-colors duration-200 focus-visible:outline-offset-[-4px]",
           on ? "text-neon" : "text-muted",
         )}
       >
         <span
           className={cn(
-            "grid h-8 w-12 place-items-center rounded-full transition-[background-color,transform] duration-300 ease-[var(--ease-smooth-out)]",
+            "grid h-8 w-full max-w-11 place-items-center rounded-full transition-[background-color,transform] duration-300 ease-[var(--ease-smooth-out)]",
             on ? "neu-pressed scale-100" : "scale-95",
           )}
         >
           <tab.icon className="size-[19px]" />
         </span>
-        <span className="max-w-full truncate px-0.5">{tab.label}</span>
+        {/* Never truncated: on a 360px phone "Anonymous" needs the whole column. */}
+        <span className="whitespace-nowrap tracking-[-0.01em]">{tab.label}</span>
       </Link>
     </li>
   );

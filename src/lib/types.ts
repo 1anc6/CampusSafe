@@ -121,7 +121,10 @@ export type AnonymousReport = {
   description: string;
   severity: Severity;
   status: IncidentStatus;
+  /** True when photos were attached (their metadata is always stripped). */
   photoStripped: boolean;
+  /** How many photos are attached; command views them at /api/photos/anonymous/$id/$n. */
+  photoCount: number;
   createdAt: string;
   updatedAt: string;
 };
