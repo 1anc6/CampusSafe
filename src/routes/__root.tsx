@@ -3,7 +3,8 @@ import { AuthProvider } from "@/lib/auth/provider";
 import { BrandMark } from "@/components/shared/brand";
 import { BRAND } from "@/lib/brand";
 import site from "@/lib/og/site.json";
-import { getViewer } from "@/backend/functions/viewer";
+import { getSecurityLine, getViewer } from "@/backend/functions/viewer";
+import { SECURITY_LINE } from "@/lib/campus";
 import { rememberedViewer, rememberViewer } from "@/lib/auth/viewer-cache";
 import { THEME_BOOT_SCRIPT, useTheme } from "@/lib/theme";
 import { Toaster } from "sonner";
@@ -22,6 +23,11 @@ export const Route = createRootRoute({
     if (isBrowser) rememberViewer(viewer);
     return { viewer };
   },
+  // The security phone line, from server settings (never bundled). Loaded once
+  // per visit; the placeholder stands in if the lookup fails.
+  loader: () => getSecurityLine().catch(() => ({ ...SECURITY_LINE })),
+  staleTime: Infinity,
+  shouldReload: false,
   head: () => ({
     meta: [
       { charSet: "utf-8" },

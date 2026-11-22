@@ -112,9 +112,11 @@ export const LOCATIONS = [
 ] as const;
 
 /**
- * PLACEHOLDER phone numbers: not real campus lines. Replace them here (and in
- * migrations/0002_schema.sql for the seeded responders) with the numbers campus
- * security supplies. Until then the UI labels them "placeholder" wherever shown.
+ * PLACEHOLDER phone numbers: not real campus lines, and real ones never go here
+ * (this repository is public). Set the real numbers as server environment
+ * variables on the host instead: SECURITY_LINE_PHONE for the security line and
+ * RESPONDER_PHONES for these units (see src/lib/contact-phones.ts). Until then
+ * the UI labels these "placeholder" wherever shown.
  */
 export const RESPONDER_UNITS = [
   { id: "sec-a", name: "Kavya Nair", unit: "Campus Security A", phone: "+91 80 4450 1101" },
@@ -124,8 +126,8 @@ export const RESPONDER_UNITS = [
 ] as const;
 
 /**
- * The security desk students can call from the app shell. Sourced from the
- * configured responder units — set it to your real campus security line.
+ * Fallback for the security desk students can call. The app shows the number
+ * from SECURITY_LINE_PHONE instead (served by the root route, useSecurityLine()).
  */
 export const SECURITY_LINE = {
   label: "Campus Security",

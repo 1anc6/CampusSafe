@@ -5,6 +5,8 @@ import { ensureBootstrapAccounts } from "@/backend/core/accounts";
 import { getOrCreateProfile } from "@/backend/core/helpers";
 import { ensureSeedData } from "@/backend/core/seed";
 import { escalateOverdueWalks } from "./walks";
+import { securityLinePhone, syncResponderPhones } from "@/backend/core/contact-phones";
+import { SECURITY_LINE } from "@/lib/campus";
 
 /**
  * Who is visiting, with the role read from the database on every call — the
@@ -18,8 +20,20 @@ export const getViewer = createServerFn({ method: "GET" })
     // Safe-walk watchdog rides along with navigation; never delays the page.
     void escalateOverdueWalks().catch((err) => console.error("[walks] watchdog failed:", err));
     await ensureSeedData();
+    // Real unit numbers from RESPONDER_PHONES (once per server instance; never throws).
+    await syncResponderPhones();
     return getOrCreateProfile(context.userId);
   });
+
+/**
+ * The campus security line for the call buttons. Read on the server from
+ * SECURITY_LINE_PHONE so the real number is never in the repository or the
+ * JavaScript bundle; loaded once per visit by the root route.
+ */
+export const getSecurityLine = createServerFn({ method: "GET" }).handler(async () => ({
+  label: SECURITY_LINE.label,
+  phone: securityLinePhone(),
+}));
 
 /**
  * Called by the login page loader: makes sure env-declared bootstrap accounts

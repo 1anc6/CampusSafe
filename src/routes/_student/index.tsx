@@ -18,7 +18,8 @@ import { profileCompleteness, useProfilePanel } from "@/components/student/profi
 import { SafeWalkCard, useSafeWalk } from "@/components/student/safe-walk";
 import { useSosFlow } from "@/components/student/sos-flow";
 import { useViewer } from "@/lib/auth/use-viewer";
-import { CAMPUS, isPlaceholderPhone, SECURITY_LINE } from "@/lib/campus";
+import { CAMPUS } from "@/lib/campus";
+import { useSecurityLine } from "@/lib/use-security-line";
 import { listMyIncidents } from "@/backend/functions/reports";
 import { listMySos } from "@/backend/functions/sos";
 import type { Incident, SosAlert } from "@/lib/types";
@@ -235,6 +236,7 @@ function StudentHome() {
 /** Medical ID status (or a nudge to fill it in) plus a one-tap call to campus security. */
 function SafetyCard({ className }: { className?: string }) {
   const { profile, open } = useProfilePanel();
+  const securityLine = useSecurityLine();
   const completeness = profile ? profileCompleteness(profile) : null;
   const ready = completeness?.missing.length === 0;
 
@@ -308,17 +310,17 @@ function SafetyCard({ className }: { className?: string }) {
       </div>
 
       <a
-        href={`tel:${SECURITY_LINE.phone.replaceAll(" ", "")}`}
+        href={securityLine.tel}
         className="flex min-h-12 items-center gap-3 border-t border-line bg-sos/5 px-4 py-2.5 transition-colors hover:bg-sos/10"
       >
         <span className="grid size-8 place-items-center rounded-lg bg-sos/15 text-sos">
           <Phone className="size-4" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-medium">Call {SECURITY_LINE.label}</span>
+          <span className="block text-sm font-medium">Call {securityLine.label}</span>
           <span className="block font-mono text-[11px] text-muted">
-            {SECURITY_LINE.phone}
-            {isPlaceholderPhone(SECURITY_LINE.phone) && (
+            {securityLine.phone}
+            {securityLine.placeholder && (
               <span className="ml-1.5 rounded bg-warn/15 px-1 py-px font-sans text-[10px] font-semibold text-warn">
                 Placeholder number
               </span>

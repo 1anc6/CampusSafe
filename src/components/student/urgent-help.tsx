@@ -1,6 +1,6 @@
 import { Phone, Siren } from "lucide-react";
 import { useViewer } from "@/lib/auth/use-viewer";
-import { isPlaceholderPhone, SECURITY_LINE } from "@/lib/campus";
+import { useSecurityLine } from "@/lib/use-security-line";
 
 /**
  * Shown on the report forms when P1 (immediate danger) is picked: a report is
@@ -11,7 +11,7 @@ import { isPlaceholderPhone, SECURITY_LINE } from "@/lib/campus";
 export function UrgentHelp() {
   const viewer = useViewer();
   const student = viewer?.role === "student";
-  const phone = SECURITY_LINE.phone;
+  const line = useSecurityLine();
   return (
     <div
       className="mt-3 flex items-start gap-3 rounded-xl bg-sos/10 p-3 ring-1 ring-sos/20"
@@ -26,16 +26,16 @@ export function UrgentHelp() {
             : "Don't fill in a form. Call campus security now."}
         </p>
         <a
-          href={`tel:${phone.replaceAll(" ", "")}`}
+          href={line.tel}
           className="mt-2.5 inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--neu-surface)] px-4 text-xs font-semibold text-sos shadow-[var(--neu-raised-xs)] transition-shadow hover:shadow-[var(--neu-raised-sm)]"
         >
           <Phone className="size-3.5 shrink-0" aria-hidden="true" />
           <span>
-            Call {SECURITY_LINE.label}{" "}
-            <span className="whitespace-nowrap font-mono font-medium">{phone}</span>
+            Call {line.label}{" "}
+            <span className="whitespace-nowrap font-mono font-medium">{line.phone}</span>
           </span>
         </a>
-        {isPlaceholderPhone(phone) && (
+        {line.placeholder && (
           <p className="mt-1.5 text-[11px] text-warn">Placeholder number — set the real one.</p>
         )}
       </div>

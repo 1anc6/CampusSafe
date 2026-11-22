@@ -95,19 +95,21 @@ node --env-file=.env.local scripts/run.mjs vite dev --host 0.0.0.0 --port 8080
 
 ## Environment variables
 
-| Variable                                            | Needed for | Purpose                                                |
-| --------------------------------------------------- | ---------- | ------------------------------------------------------ |
-| `DATABASE_URL`                                      | production | Neon Postgres connection string (use the _pooled_ one) |
-| `BETTER_AUTH_SECRET`                                | production | Long random string that signs sessions                 |
-| `BETTER_AUTH_URL`                                   | production | Public site URL, e.g. `https://campus-safe.vercel.app` |
-| `TRUSTED_ORIGINS`                                   | optional   | Other addresses users open the site from (see below)   |
-| `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` | first run  | Creates the first admin account                        |
-| `SIGNUP_ALLOWED_DOMAINS`                            | optional   | Comma-separated email domains allowed to sign up       |
-| `SEED_SAMPLE_DATA`                                  | optional   | `true` loads demo incidents into a real database       |
-| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`             | optional   | Phone push notifications; make a pair with `node scripts/vapid-keys.mjs`. Unset = push off |
-| `VAPID_SUBJECT`                                     | optional   | Contact for push services (`mailto:` or `https:`); defaults to `BETTER_AUTH_URL` |
-| `CRON_SECRET`                                       | production | Long random string; guards `/api/cron/*`              |
-| `QSTASH_TOKEN`, `QSTASH_URL`                        | production | Upstash QStash: books one watchdog call per safe walk, just after its deadline, so a walk escalates even if the phone dies. `QSTASH_URL` only if your account has a regional URL |
+| Variable                                            | Needed for | Purpose                                                                                                                                                                            |
+| --------------------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                      | production | Neon Postgres connection string (use the _pooled_ one)                                                                                                                             |
+| `BETTER_AUTH_SECRET`                                | production | Long random string that signs sessions                                                                                                                                             |
+| `BETTER_AUTH_URL`                                   | production | Public site URL, e.g. `https://campus-safe.vercel.app`                                                                                                                             |
+| `TRUSTED_ORIGINS`                                   | optional   | Other addresses users open the site from (see below)                                                                                                                               |
+| `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` | first run  | Creates the first admin account                                                                                                                                                    |
+| `SIGNUP_ALLOWED_DOMAINS`                            | optional   | Comma-separated email domains allowed to sign up                                                                                                                                   |
+| `SEED_SAMPLE_DATA`                                  | optional   | `true` loads demo incidents into a real database                                                                                                                                   |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`             | optional   | Phone push notifications; make a pair with `node scripts/vapid-keys.mjs`. Unset = push off                                                                                         |
+| `VAPID_SUBJECT`                                     | optional   | Contact for push services (`mailto:` or `https:`); defaults to `BETTER_AUTH_URL`                                                                                                   |
+| `CRON_SECRET`                                       | production | Long random string; guards `/api/cron/*`                                                                                                                                           |
+| `QSTASH_TOKEN`, `QSTASH_URL`                        | production | Upstash QStash: books one watchdog call per safe walk, just after its deadline, so a walk escalates even if the phone dies. `QSTASH_URL` only if your account has a regional URL   |
+| `SECURITY_LINE_PHONE`                               | production | The campus security number on every "Call security" button. Kept out of the repo; unset = placeholder                                                                              |
+| `RESPONDER_PHONES`                                  | production | Real numbers for the responder units, e.g. `sec-a=+91 …,med-1=+91 …,night=+91 …` (ids: `sec-a`, `med-1`, `night`, `fire`). Copied into the database on start; unset = placeholders |
 
 ## Commands
 

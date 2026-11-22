@@ -13,7 +13,8 @@ import {
 import { toast } from "sonner";
 import { SosButton } from "@/components/shared/sos-button";
 import { createSos } from "@/backend/functions/sos";
-import { campusProximity, formatKm, SECURITY_LINE } from "@/lib/campus";
+import { campusProximity, formatKm } from "@/lib/campus";
+import { useSecurityLine } from "@/lib/use-security-line";
 import {
   clearPendingSos,
   readLastFix,
@@ -59,8 +60,6 @@ type Delivery = {
   nextAt?: number;
   ageMin?: number;
 };
-
-const SECURITY_TEL = `tel:${SECURITY_LINE.phone.replaceAll(" ", "")}`;
 
 /** A short, human reason from a server error (validation errors arrive as JSON). */
 function errorReason(err: unknown): string | undefined {
@@ -345,6 +344,7 @@ function DeliveryCard({
   onRetry: () => void;
   onCancel: () => void;
 }) {
+  const securityLine = useSecurityLine();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 1000);
@@ -384,7 +384,7 @@ function DeliveryCard({
       </div>
       <div className="grid grid-cols-3 gap-px border-t border-line bg-line text-xs font-semibold">
         <a
-          href={SECURITY_TEL}
+          href={securityLine.tel}
           className="flex min-h-12 items-center justify-center gap-1.5 bg-chrome text-sos hover:bg-panel"
         >
           <Phone className="size-4" /> Call security

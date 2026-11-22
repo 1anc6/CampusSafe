@@ -2,7 +2,6 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { EyeOff, FileWarning, FolderOpen, Home, Phone } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { useViewer } from "@/lib/auth/use-viewer";
-import { isPlaceholderPhone, SECURITY_LINE } from "@/lib/campus";
 import { cn } from "@/lib/utils";
 import { SignOutButton } from "@/components/shared/account-menu";
 import { Wordmark } from "@/components/shared/brand";
@@ -14,6 +13,7 @@ import { SosFlowProvider, SosTrigger } from "@/components/student/sos-flow";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { StudentBell } from "@/components/student/student-bell";
 import { PushNotifications } from "@/components/shared/push-notifications";
+import { useSecurityLine } from "@/lib/use-security-line";
 
 const TABS = [
   { to: "/", label: "Home", icon: Home },
@@ -62,6 +62,7 @@ export function StudentShell({
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   useAnonTheme(anon);
+  const securityLine = useSecurityLine();
 
   return (
     <SosFlowProvider>
@@ -119,20 +120,20 @@ export function StudentShell({
                     </span>
                   )}
                   <a
-                    href={`tel:${SECURITY_LINE.phone.replaceAll(" ", "")}`}
-                    title={`Call ${SECURITY_LINE.label}: ${SECURITY_LINE.phone}${isPlaceholderPhone(SECURITY_LINE.phone) ? " (placeholder number)" : ""}`}
-                    aria-label={`Call ${SECURITY_LINE.label}, ${SECURITY_LINE.phone}`}
+                    href={securityLine.tel}
+                    title={`Call ${securityLine.label}: ${securityLine.phone}${securityLine.placeholder ? " (placeholder number)" : ""}`}
+                    aria-label={`Call ${securityLine.label}, ${securityLine.phone}`}
                     className="flex min-h-11 items-center justify-center gap-3 rounded-2xl bg-sos/10 ring-1 ring-sos/20 transition-colors hover:bg-sos/15 2xl:justify-start 2xl:px-3.5 2xl:py-3"
                   >
                     <Phone className="size-4 shrink-0 text-sos" />
                     <span className="hidden min-w-0 2xl:block">
                       <span className="block text-xs font-semibold text-fg">
-                        {SECURITY_LINE.label}
+                        {securityLine.label}
                       </span>
                       <span className="block font-mono text-[11px] text-muted">
-                        {SECURITY_LINE.phone}
+                        {securityLine.phone}
                       </span>
-                      {isPlaceholderPhone(SECURITY_LINE.phone) && (
+                      {securityLine.placeholder && (
                         <span className="block text-[10px] font-semibold text-warn">
                           Placeholder number
                         </span>
