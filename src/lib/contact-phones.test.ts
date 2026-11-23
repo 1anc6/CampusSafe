@@ -51,3 +51,13 @@ test("parseUnitMap works for names too, and nothing set is empty", () => {
   assert.equal(parseUnitMap(undefined, UNITS, cleanPhone).values.size, 0);
   assert.equal(parseUnitMap("  ", UNITS, cleanName).values.size, 0);
 });
+
+test("parseUnitMap keeps the first valid value when a unit is listed twice", () => {
+  const { values, skipped } = parseUnitMap(
+    "sec-a=+91 80123 45678, sec-a=+91 80987 65432",
+    UNITS,
+    cleanPhone,
+  );
+  assert.equal(values.get("sec-a"), "+91 80123 45678");
+  assert.deepEqual(skipped, ["sec-a"]);
+});

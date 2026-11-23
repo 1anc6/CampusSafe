@@ -44,7 +44,7 @@ export function parseUnitMap(
     const at = entry.indexOf("=");
     const id = at > 0 ? entry.slice(0, at).trim() : "";
     const value = at > 0 ? clean(entry.slice(at + 1)) : null;
-    if (!id || !value || !knownIds.includes(id)) {
+    if (!id || !value || !knownIds.includes(id) || values.has(id)) {
       skipped.push(id || "(no unit id)");
       continue;
     }
