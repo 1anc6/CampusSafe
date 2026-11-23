@@ -6,3 +6,4 @@ Confirm responder phone mappings before enabling live alerts.
 Keep the bootstrap admin credentials in the deployment secret store.
 Run database migrations before validating a production release.
 Review anonymous reports without attempting to identify the reporter.
+Check web-push keys whenever notification delivery is updated.
