@@ -4,3 +4,4 @@ Verify the admin dashboard after changing environment variables.
 Use test accounts only in local development environments.
 Confirm responder phone mappings before enabling live alerts.
 Keep the bootstrap admin credentials in the deployment secret store.
+Run database migrations before validating a production release.
