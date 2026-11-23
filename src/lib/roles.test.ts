@@ -41,7 +41,16 @@ describe("sanitizeRedirect", () => {
     assert.equal(sanitizeRedirect("/reports?tab=sos"), "/reports?tab=sos");
   });
   it("rejects open redirects and junk", () => {
-    for (const bad of ["//evil.com", "https://evil.com", "evil.com", "/\\evil.com", "", null, 42]) {
+    for (const bad of [
+      "//evil.com",
+      "https://evil.com",
+      "evil.com",
+      "/\\evil.com",
+      "/reports\nSet-Cookie: bad",
+      "",
+      null,
+      42,
+    ]) {
       assert.equal(sanitizeRedirect(bad), null, String(bad));
     }
   });

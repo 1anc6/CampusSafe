@@ -51,6 +51,7 @@ export function canAccessPath(role: UserRole, path: string): boolean {
 export function sanitizeRedirect(raw: unknown): string | null {
   if (typeof raw !== "string" || !raw.startsWith("/") || raw.startsWith("//")) return null;
   if (raw.includes("\\")) return null;
+  if (/[\u0000-\u001F\u007F]/.test(raw)) return null;
   const pathname = raw.split(/[?#]/, 1)[0] ?? "";
   if (matches(pathname, "/login") || matches(pathname, "/signup")) return null;
   return raw;
